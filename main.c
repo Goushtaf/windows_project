@@ -2,25 +2,25 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_video.h>
+#include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
 #include "utils.h"
+
 
 #define WIDTH 800
 #define HEIGHT 600
+#define NBOFWINDOWS 5
+
 
 int main(void){
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow(
-            "boids (SDL2)",
-            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            WIDTH, HEIGHT, 0
-            );
-    SDL_DisplayMode displayMode;
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    srand(time(NULL));
+    
     SDL_Event event;
     bool running = true;
     
-    pixelPos windowpos = {0, 0}; 
+    SDL_DisplayMode displayMode;
     
     if (SDL_GetDesktopDisplayMode(0, &displayMode) != 0){
         perror("Getting displayMode failed");
@@ -28,9 +28,19 @@ int main(void){
     } else {
         printf("Screen width=%d, height=%d\n", displayMode.w, displayMode.h);
     }
+    SDL_Window** windowArray = calloc(NBOFWINDOWS, sizeof(SDL_Window*));
+    SDL_Renderer** rendererArray = calloc(NBOFWINDOWS, sizeof(SDL_Renderer*));
+    for (size_t i = 0; i < NBOFWINDOWS; ++i){
+        char str[20];
+        sprintf(str, "Window N.%zu", i);
+        windowArray[i] = Create_Window(displayMode.w, displayMode.h, str);
+        rendererArray[i] = SDL_CreateRenderer(windowArray[i], -1, SDL_RENDERER_ACCELERATED);
+    }
 
     int global_rect_x = displayMode.w/2;
     int global_rect_y = displayMode.h/2;
+    
+    pixelPos windowposArray[NBOFWINDOWS] = {0};
 
     while(running){
         while (SDL_PollEvent(&event)){
@@ -39,31 +49,36 @@ int main(void){
                     running = false;
                     break;
                 case SDL_WINDOWEVENT:
-                    switch (event.window.event){
-                        case SDL_WINDOWEVENT_MOVED:
-                            windowpos.x = event.window.data1;
-                            windowpos.y = event.window.data2;
-                            printf("Window moved to x=%d;y=%d\n", windowpos.x, windowpos.y);
-                            break;
+                    if (event.window.event == SDL_WINDOWEVENT_MOVED) {
+                        Uint32 movedWindowID = event.window.windowID;
+                        
+                        for (size_t i = 0; i < NBOFWINDOWS; ++i) {
+                            if (SDL_GetWindowID(windowArray[i]) == movedWindowID) {
+                                windowposArray[i].x = event.window.data1;
+                                windowposArray[i].y = event.window.data2;
+                                break;
+                            }
+                        }
                     }
                     break;
             }
         }
-        
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+       
+        for (size_t i = 0; i < NBOFWINDOWS; ++i){
+            SDL_Rect render_rect = {global_rect_x, global_rect_y, 500, 500};
 
-        SDL_Rect render_rect = {global_rect_x, global_rect_y, 100, 100};
+            Global_to_Local(&render_rect.x, &render_rect.y, &windowposArray[i]);
 
-        Global_to_Local(&render_rect.x, &render_rect.y, &windowpos);
+            SDL_SetRenderDrawColor(rendererArray[i], 0, 0, 0, 200);
+            SDL_RenderClear(rendererArray[i]);
 
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderFillRect(renderer, &render_rect);
-        SDL_RenderPresent(renderer);
+            SDL_SetRenderDrawColor(rendererArray[i], 255, 255, 255, 255);
+            SDL_RenderFillRect(rendererArray[i], &render_rect);
+            SDL_RenderPresent(rendererArray[i]);
+        }
     }
-    
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
+
+    Destroy_Windows_And_Renderers(windowArray, rendererArray, NBOFWINDOWS);
     SDL_Quit();
     return 0;
 }
