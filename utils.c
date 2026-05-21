@@ -16,6 +16,7 @@ GLFWwindow* Create_Window(GLFWmonitor* monitor, int screenWidth, int screenHeigh
     GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, title, NULL, NULL);
     glfwSetWindowMonitor(window, monitor, x, y, WIDTH, HEIGHT, REFRESHRATE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
     return window;
 }
 void Destroy_Windows(GLFWwindow** windowArray, size_t length){
